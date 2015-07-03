@@ -12,7 +12,7 @@ function varargout = Photobleacher(varargin)
 %
 
 
-% Last Modified by GUIDE v2.5 22-Jan-2015 11:06:33
+% Last Modified by GUIDE v2.5 02-Jul-2015 15:02:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -50,6 +50,7 @@ handles.currChoice = 'None'; % used to determine if user accepted or
 
 handles.fitResult = 'None';
 
+
 % Update handles structure
 guidata(hObject, handles);
 
@@ -65,19 +66,6 @@ function varargout = Photobleacher_OutputFcn(~, ~, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on selection change in NumSteps.
-function NumSteps_Callback(~, ~, handles)
-
-
-% --- Executes during object creation, after setting all properties.
-function NumSteps_CreateFcn(hObject, ~, handles)
-
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on button press in AcceptStep.
 function AcceptStep_Callback(hObject, ~, handles)
 
 handles.currChoice = 'Accept';
@@ -86,10 +74,16 @@ guidata(hObject, handles);
 uiresume;
 
 
-% --- Executes on button press in RejectStep.
 function RejectStep_Callback(hObject, ~, handles)
 
 handles.currChoice = 'Reject';
+guidata(hObject, handles);
+
+uiresume;
+
+function AddDataPoint_Callback(hObject, ~, handles)
+
+handles.currChoice = 'AddDataPt';
 guidata(hObject, handles);
 
 uiresume;
@@ -115,8 +109,10 @@ coordFile = fopen([pathName,fileName]);
 pointCoords = cell2mat(textscan(coordFile, '%f%f', 'CollectOutput', 1));
 fclose(coordFile);
 
+frameDuration = str2double(get(handles.FrameDuration, 'string'));
 fitResult = struct([]); %structure storing all results
 ctr2 = 1; % counter for appending data to fitResult
+
 for i = 1:2:length(intensityFiles)
     img = imread([imgFileDir,imageFiles(i).name]);
     axes(handles.SpotImage);
@@ -143,29 +139,67 @@ for i = 1:2:length(intensityFiles)
     
     plot(handles.StepPlot, intensity(:,1), intensity(:,2));
     
-    uiwait;
-    handles = guidata(hObject); % read updated handles structure
-    disp(handles.currChoice);
+    nextSpot = 0;
+    startEndTimes = []; % to keep track of arrival and departure times
+
     
-    if strcmp(handles.currChoice, 'Accept') % accept fit
-           numStepsOptions = get(handles.NumSteps, 'String');
-           numStepsSel = get(handles.NumSteps, 'Value');
-           numSteps = str2double(numStepsOptions{numStepsSel});
-           
-           
-           % add info to fitResult:
-           fitResult(ctr2).numSteps = numSteps;
-           fitResult(ctr2).fileName = [pathName,intensityFiles(i).name];
-           fitResult(ctr2).backgroundFileName = ...
-                                    [pathName,intensityFiles(i+1).name];
-           fitResult(ctr2).pointCoord = pointCoords(i,:);
-           fitResult(ctr2).backgroundCoord = pointCoords(i+1,:);
-           fitResult(ctr2).intensity = intensity;
-           fitResult(ctr2).rawIntensity = rawIntensity;
-           fitResult(ctr2).background = background;
-           fitResult(ctr2).image = img;
-           
-           ctr2 = ctr2 + 1;
+    while nextSpot == 0
+        
+        uiwait;
+        handles = guidata(hObject); % read updated handles structure
+        disp(handles.currChoice);
+        
+        if strcmp(handles.currChoice, 'Accept') % accept fit
+            numStepsOptions = get(handles.NumSteps, 'String');
+            numStepsSel = get(handles.NumSteps, 'Value');
+            numSteps = str2double(numStepsOptions{numStepsSel});
+            
+            
+            % add info to fitResult:
+            fitResult(ctr2).numSteps = numSteps;
+            fitResult(ctr2).startEndTimes = startEndTimes;
+            fitResult(ctr2).fileName = [pathName,intensityFiles(i).name];
+            fitResult(ctr2).backgroundFileName = ...
+                [pathName,intensityFiles(i+1).name];
+            fitResult(ctr2).pointCoord = pointCoords(i,:);
+            fitResult(ctr2).backgroundCoord = pointCoords(i+1,:);
+            fitResult(ctr2).intensity = intensity;
+            fitResult(ctr2).rawIntensity = rawIntensity;
+            fitResult(ctr2).background = background;
+            fitResult(ctr2).image = img;
+            fitResult(ctr2).frameRateHz = 1/frameDuration;
+            
+            ctr2 = ctr2 + 1;
+            
+            nextSpot = 1;
+          
+        elseif strcmp(handles.currChoice, 'AddDataPt')
+            tempTimes = zeros(1,3);
+            
+            numStepsOptions = get(handles.NumSteps, 'String');
+            numStepsSel = get(handles.NumSteps, 'Value');
+            numSteps = str2double(numStepsOptions{numStepsSel});
+            
+            startTime = str2double(get(handles.StartFrame, 'String')) ...
+                * frameDuration;
+            endTime = str2double(get(handles.EndFrame, 'String')) ...
+                * frameDuration;
+            
+            tempTimes(1) = startTime;
+            tempTimes(2) = endTime;
+            tempTimes(3) = numSteps;
+            
+            startEndTimes = [startEndTimes; tempTimes];  %#ok<AGROW>
+            
+        else 
+            
+            nextSpot = 1;
+            
+        end
+        
+        set(handles.StartFrame, 'String', '');
+        set(handles.EndFrame, 'String', '');
+        
     end
     
     handles.currChoice = 'None';
@@ -175,3 +209,50 @@ end
 uisave('fitResult', 'PhotobleacherResult.mat');
 
 guidata(hObject, handles);
+
+
+
+function StartFrame_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function StartFrame_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function EndFrame_Callback(hObject, eventdata, handles)
+
+
+
+% --- Executes during object creation, after setting all properties.
+function EndFrame_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function FrameDuration_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function FrameDuration_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in NumSteps.
+function NumSteps_Callback(~, ~, ~)
+
+
+% --- Executes during object creation, after setting all properties.
+function NumSteps_CreateFcn(hObject, ~, ~)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

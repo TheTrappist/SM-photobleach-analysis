@@ -1,12 +1,17 @@
-function numSteps = AnalyzePhotobleach 
+function numSteps = SummarizePhotobleachData 
 % Summarizes photobleaching file data
+
+% user settings:
 plotEachTrace = 1;
+plotResidenceTimes = 1;
+
 
 range = 0:5; % range for histogram
 
 files = dir('*.mat');
 %fitResult = struct(); % intialize fitResult
 numSteps = [];
+residenceTimes = [];
 
 for i = 1:length(files)
     
@@ -29,6 +34,13 @@ for i = 1:length(files)
             image(fitResult(ii).image,'CDataMapping','scaled');
             colormap(gray);
         end
+        
+        if plotResidenceTimes
+            arrivalTimes = fitResult(ii).startEndTimes(:,1);
+            departureTimes = fitResult(ii).startEndTimes(:,2);
+            residenceTimesCurr = departureTimes - arrivalTimes;
+            residenceTimes = [residenceTimes; residenceTimesCurr]; %#ok<AGROW>
+        end
     end
 
 end
@@ -49,5 +61,18 @@ ylabel('Counts')
 title('Photobleaching steps')
 xlim([0,5.5]);
 
+if plotResidenceTimes
+    [bincounts, edges] = histcounts(residenceTimes);
+    centers = (edges(2:end)+ edges(1:end-1))./2;
+    hFig2 = figure;
+    hBar2 = bar(centers, bincounts, 0.7, 'hist');
+    hAxes2 = gca;
+    
+    set(hAxes2, 'FontSize', 14, 'FontName', 'Arial');
+    set(hBar2, 'FaceColor',[0 .5 .5])
+    xlabel('Residence time (s)')
+    ylabel('Counts')
+    title('Single-molecule residence times')
+end
 
 
