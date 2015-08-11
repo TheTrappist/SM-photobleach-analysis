@@ -2,8 +2,12 @@ function numSteps = SummarizePhotobleachData
 % Summarizes photobleaching file data
 
 % user settings:
-plotEachTrace = 1;
+plotEachTrace = 0;
 plotResidenceTimes = 1;
+
+% Histogram plotting settins
+autoBinSizes = 0;
+manualBinEdges = 0:5:50;
 
 
 range = 0:5; % range for histogram
@@ -62,7 +66,12 @@ title('Photobleaching steps')
 xlim([0,5.5]);
 
 if plotResidenceTimes
-    [bincounts, edges] = histcounts(residenceTimes);
+    if autoBinSizes == 1
+        [bincounts, edges] = histcounts(residenceTimes);
+    else
+        [bincounts, edges] = histcounts(residenceTimes,manualBinEdges);
+    end
+    
     centers = (edges(2:end)+ edges(1:end-1))./2;
     hFig2 = figure;
     hBar2 = bar(centers, bincounts, 0.7, 'hist');
