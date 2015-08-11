@@ -5,9 +5,10 @@ function numSteps = SummarizePhotobleachData
 plotEachTrace = 0;
 plotResidenceTimes = 1;
 
-% Histogram plotting settins
+% Histogram plotting settings
 autoBinSizes = 0;
 manualBinEdges = 0:5:50;
+fitLineVector = 0.5:0.5:50;
 
 
 range = 0:5; % range for histogram
@@ -29,7 +30,7 @@ for i = 1:length(files)
     for ii = 1:length(fitResult)
         numSteps = [numSteps; fitResult(ii).numSteps]; %#ok<AGROW>
         if plotEachTrace
-            figure;
+            figure; %#ok<UNRCH>
             [~,Name,Ext] = fileparts(fitResult(ii).fileName);
             subplot(1,2,1); plot(fitResult(ii).intensity(:,1), ...
                 fitResult(ii).intensity(:,2));
@@ -54,7 +55,7 @@ clear fitResult
 
 [bincounts] = histc(numSteps, range);
 
-hFig = figure;
+hFig = figure; %#ok<NASGU>
 hBar = bar(range, bincounts, 0.7, 'hist');
 hAxes = gca;
 
@@ -72,16 +73,29 @@ if plotResidenceTimes
         [bincounts, edges] = histcounts(residenceTimes,manualBinEdges);
     end
     
+    % fit to exponential decay
+    pd = fitdist(residenceTimes, 'Exponential');
+    x_val = fitLineVector;  
+    y = pdf(pd, x_val);
+    
     centers = (edges(2:end)+ edges(1:end-1))./2;
-    hFig2 = figure;
+    hFig2 = figure; %#ok<NASGU>
+    hold on
     hBar2 = bar(centers, bincounts, 0.7, 'hist');
+    
+    stepSize = edges(2)-edges(1);
+    hResTimesLine = plot(x_val, y*length(residenceTimes)*stepSize, ...
+        'LineWidth', 2, 'Color', 'red'); %#ok<NASGU>
     hAxes2 = gca;
+    hold off
     
     set(hAxes2, 'FontSize', 14, 'FontName', 'Arial');
-    set(hBar2, 'FaceColor',[0 .5 .5])
-    xlabel('Residence time (s)')
-    ylabel('Counts')
-    title('Single-molecule residence times')
+    set(hBar2, 'FaceColor',[0 .5 .5]);
+    xlabel('Residence time (s)');
+    ylabel('Counts');
+    title('Single-molecule residence times');
+    
+    pd %#ok<NOPRT>
 end
 
 
